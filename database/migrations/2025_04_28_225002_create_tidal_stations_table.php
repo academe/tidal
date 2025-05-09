@@ -9,14 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tidal_stations', function (Blueprint $table) {
-            $table->string('id')->primary(); // Station ID from API
+            $table->id();
+            $table->string('station_id')->unique()->comment('The ID of the station from the API');
             $table->string('name');
             $table->string('country')->nullable();
-            $table->double('longitude')->nullable();
-            $table->double('latitude')->nullable();
+            $table->double('longitude')->nullable()->comment('WGS84 longitude degrees');
+            $table->double('latitude')->nullable()->comment('WGS84 latitude degrees');
             $table->boolean('continuous_heights_available')->default(false);
             $table->text('footnote')->nullable();
-            $table->json('raw_data')->nullable(); // Store the full JSON response
+            $table->json('raw_data')->nullable()->comment('The full JSON response');
             $table->timestamps();
         });
     }

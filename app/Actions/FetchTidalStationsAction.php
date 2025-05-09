@@ -7,9 +7,10 @@
 
 namespace App\Actions;
 
+use Exception;
 use App\Models\TidalStation;
-use App\Services\UKTidalApiService;
 use Illuminate\Support\Facades\DB;
+use App\Services\UKTidalApiService;
 use Illuminate\Support\Facades\Log;
 
 class FetchTidalStationsAction
@@ -87,7 +88,7 @@ class FetchTidalStationsAction
 
                     // Update or create the station record
                     $station = TidalStation::updateOrCreate(
-                        ['id' => $stationId],
+                        ['station_id' => $stationId],
                         $stationData
                     );
 
@@ -96,7 +97,7 @@ class FetchTidalStationsAction
                     } else {
                         $stationsUpdated++;
                     }
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     Log::error('Error processing station', [
                         'feature' => $feature,
                         'message' => $e->getMessage(),
@@ -114,7 +115,7 @@ class FetchTidalStationsAction
                 'stations_updated' => $stationsUpdated,
                 'execution_time' => microtime(true) - $startTime,
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             Log::error('Exception while processing tidal stations', [
                 'message' => $e->getMessage(),

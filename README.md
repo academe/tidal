@@ -2,6 +2,8 @@
 
 This package provides a simple and robust integration with the UK Admiralty Tidal API for Laravel applications. It allows you to fetch and store tidal station information and tidal events (high and low water) for over 600 UK coastal locations.
 
+Note: this is at the moment an experimental full application, a proof of concept. It is likely to lead to a separate package later.
+
 ## Features
 
 - Fetch and store tidal station information including coordinates and metadata

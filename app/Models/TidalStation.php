@@ -8,18 +8,13 @@ use Illuminate\Support\Facades\DB;
 class TidalStation extends Model
 {
     /**
-     * The primary key is a string, not an auto-incrementing integer
-     */
-    protected $keyType = 'string';
-
-    /**
      * Indicates if the IDs are auto-incrementing.
      * Set to false for string IDs.
      */
     public $incrementing = false;
 
     protected $fillable = [
-        'id',
+        'station_id',
         'name',
         'country',
         'longitude',
@@ -35,6 +30,16 @@ class TidalStation extends Model
         'longitude' => 'double',
         'latitude' => 'double',
     ];
+
+    /**
+     * Get the route key for the model.
+     */
+    public function getRouteKeyName(): string
+    {
+        // You might want to still use station_id in routes for backward compatibility
+        // If not needed, remove this method
+        return 'station_id';
+    }
 
     /**
      * Get location as an array
@@ -72,7 +77,7 @@ class TidalStation extends Model
      */
     public function tidalEvents()
     {
-        return $this->hasMany(TidalEvent::class, 'station_id', 'id');
+        return $this->hasMany(TidalEvent::class, 'station_id', 'station_id');
     }
 
     /**

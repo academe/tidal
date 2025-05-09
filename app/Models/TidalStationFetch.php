@@ -31,7 +31,7 @@ class TidalStationFetch extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'station_id',
+        'tidal_station_id',
         'last_fetch_at',
         'fetch_error',
         'error_message',

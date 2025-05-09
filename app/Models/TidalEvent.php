@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class TidalEvent extends Model
 {
     protected $fillable = [
-        'station_id',
+        'tidal_station_id',
         'event_type',
         'event_datetime',
         'height',
@@ -18,6 +18,7 @@ class TidalEvent extends Model
         'raw_data',
     ];
 
+    // @todo cast event_type to enum
     protected $casts = [
         'event_datetime' => 'datetime',
         'height' => 'double',
@@ -25,7 +26,6 @@ class TidalEvent extends Model
         'is_approximate_height' => 'boolean',
         'filtered' => 'boolean',
         'raw_data' => 'array',
-        // Important: do NOT cast station_id to integer
     ];
 
     /**
@@ -33,6 +33,6 @@ class TidalEvent extends Model
      */
     public function station(): BelongsTo
     {
-        return $this->belongsTo(TidalStation::class, 'station_id', 'id');
+        return $this->belongsTo(TidalStation::class, 'station_id', 'station_id');
     }
 }

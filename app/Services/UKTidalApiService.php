@@ -7,8 +7,9 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
+use Exception;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class UKTidalApiService
 {
@@ -110,7 +111,7 @@ class UKTidalApiService
             ]);
 
             return null;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error("Exception while fetching tidal events for station: {$stationId}", [
                 'message' => $e->getMessage(),
             ]);

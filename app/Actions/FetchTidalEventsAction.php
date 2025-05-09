@@ -2,12 +2,13 @@
 
 namespace App\Actions;
 
+use Exception;
+use Carbon\Carbon;
 use App\Models\TidalEvent;
 use App\Models\TidalStation;
 use App\Models\TidalStationFetch;
-use App\Services\UKTidalApiService;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Services\UKTidalApiService;
 use Illuminate\Support\Facades\Log;
 
 class FetchTidalEventsAction
@@ -105,29 +106,29 @@ class FetchTidalEventsAction
                     }
 
                     // Fetch events for this station
-                    $events = $this->tidalApiService->getTidalEvents($station->id, $duration);
+                    $events = $this->tidalApiService->getTidalEvents($station->station_id, $duration);
 
                     if (!$events || !is_array($events)) {
-                        $this->updateFetchRecord($station->id, true, 'API returned invalid data');
+                        $this->updateFetchRecord($station, true, 'API returned invalid data');
                         $errorCount++;
                         continue;
                     }
 
                     // Process and save the events
-                    $addedCount = $this->processStationEvents($station->id, $events);
+                    $addedCount = $this->processStationEvents($station, $events);
                     $eventsAdded += $addedCount;
 
                     // Update the fetch record
-                    $this->updateFetchRecord($station->id, false);
+                    $this->updateFetchRecord($station, false);
                     $successCount++;
 
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     Log::error("Error fetching events for station {$station->id}", [
                         'message' => $e->getMessage(),
                         'trace' => $e->getTraceAsString(),
                     ]);
 
-                    $this->updateFetchRecord($station->id, true, $e->getMessage());
+                    $this->updateFetchRecord($station, true, $e->getMessage());
                     $errorCount++;
                 }
 
@@ -146,7 +147,7 @@ class FetchTidalEventsAction
                 'execution_time' => microtime(true) - $startTime,
             ];
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Exception in FetchTidalEventsAction', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -189,7 +190,7 @@ class FetchTidalEventsAction
         $query = TidalStation::query();
 
         // Join with fetch records to get last fetch time
-        $query->leftJoin('tidal_station_fetches', 'tidal_stations.id', '=', 'tidal_station_fetches.station_id');
+        $query->leftJoin('tidal_station_fetches', 'tidal_stations.id', '=', 'tidal_station_fetches.tidal_station_id');
 
         // If not forcing refresh, prioritize stations that haven't been fetched recently
         if (!$forceRefresh) {
@@ -205,11 +206,12 @@ class FetchTidalEventsAction
 
         // Order by fetch time (oldest first) and then by station ID for consistency
         // Explicitly select the station id to ensure we're getting the correct field
-        return $query->orderBy('tidal_station_fetches.last_fetch_at', 'asc')
-                    ->orderBy('tidal_stations.id', 'asc')
-                    ->select('tidal_stations.*')
-                    ->limit($this->batchSize)
-                    ->get();
+        return $query
+            ->orderBy('tidal_station_fetches.last_fetch_at', 'asc')
+            ->orderBy('tidal_stations.id', 'asc')
+            ->select('tidal_stations.*')
+            ->limit($this->batchSize)
+            ->get();
     }
 
     /**
@@ -219,7 +221,7 @@ class FetchTidalEventsAction
      * @param array $events
      * @return int Number of events added
      */
-    protected function processStationEvents(string $stationId, array $events): int
+    protected function processStationEvents(TidalStation $station, array $events): int
     {
         $addedCount = 0;
 
@@ -234,7 +236,7 @@ class FetchTidalEventsAction
 
                 // Create the event record
                 $eventData = [
-                    'station_id' => $stationId,
+                    // 'station_id' => $station->station_id,
                     'event_type' => $event['EventType'],
                     'event_datetime' => Carbon::parse($event['DateTime']),
                     'height' => $event['Height'] ?? null,
@@ -247,7 +249,7 @@ class FetchTidalEventsAction
                 // Use updateOrCreate to handle duplicates based on composite key
                 $tidalEvent = TidalEvent::updateOrCreate(
                     [
-                        'station_id' => $stationId,
+                        'tidal_station_id' => $station->id,
                         'event_type' => $event['EventType'],
                         'event_datetime' => Carbon::parse($event['DateTime']),
                     ],
@@ -262,9 +264,9 @@ class FetchTidalEventsAction
             DB::commit();
             return $addedCount;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
-            Log::error("Error processing events for station {$stationId}", [
+            Log::error("Error processing events for station {$station->station_id}", [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -279,27 +281,21 @@ class FetchTidalEventsAction
      * @param bool $hasError
      * @param string|null $errorMessage
      */
-    protected function updateFetchRecord(string $stationId, bool $hasError = false, ?string $errorMessage = null): void
+    protected function updateFetchRecord(TidalStation $station, bool $hasError = false, ?string $errorMessage = null): void
     {
         try {
-            // First check if the station exists
-            $stationExists = TidalStation::where('id', $stationId)->exists();
-
-            if (!$stationExists) {
-                Log::error("Cannot update fetch record: Station {$stationId} does not exist in the database");
-                return;
-            }
-
             TidalStationFetch::updateOrCreate(
-                ['station_id' => $stationId],
+                [
+                    'tidal_station_id' => $station->id,
+                ],
                 [
                     'last_fetch_at' => Carbon::now(),
                     'fetch_error' => $hasError,
                     'error_message' => $errorMessage ? substr($errorMessage, 0, 255) : null, // Ensure error message isn't too long
                 ]
             );
-        } catch (\Exception $e) {
-            Log::error("Error updating fetch record for station {$stationId}", [
+        } catch (Exception $e) {
+            Log::error("Error updating fetch record for station {$station->station_id}", [
                 'message' => $e->getMessage()
             ]);
         }
